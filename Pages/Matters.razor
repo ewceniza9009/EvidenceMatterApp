@@ -157,14 +157,17 @@ else
 
     private async Task HandleValidSubmit()
     {
-        var matterModel = Mapper.Map<MattersModel>(currentMatter);
-
         if (isEditing)
         {
-            MatterWriteRepo.Update(matterModel);
+            var matterModel = await MatterReadRepo.GetByIdAsync(currentMatter.MatterId);
+            if (matterModel != null)
+            {
+                Mapper.Map(currentMatter, matterModel);
+            }
         }
         else
         {
+            var matterModel = Mapper.Map<MattersModel>(currentMatter);
             await MatterWriteRepo.AddAsync(matterModel);
         }
 

@@ -1,0 +1,24 @@
+﻿@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@inject AuthenticationStateProvider AuthStateProvider
+
+<AuthorizeView>
+    <Authorized>
+        <span class="nav-text">Hello, @context.User.Identity.Name!</span>
+        <button class="btn btn-link nav-link" @onclick="Logout">Logout</button>
+    </Authorized>
+    <NotAuthorized>
+        <a href="register" class="nav-link">Register</a>
+        <a href="login" class="nav-link">Login</a>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private async Task Logout()
+    {
+        await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken");
+
+        ((JwtAuthStateProvider)AuthStateProvider).NotifyUserLogout();
+        Navigation.NavigateTo("/login");
+    }
+}

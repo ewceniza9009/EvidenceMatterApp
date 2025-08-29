@@ -1,0 +1,21 @@
+﻿@page "/"
+
+<PageTitle>Home</PageTitle>
+
+<div class="text-center">
+    <h1 class="display-4">Welcome to Your App</h1>
+    <p class="lead">A beautifully styled Blazor application with JWT authentication.</p>
+
+    <AuthorizeView>
+        <Authorized>
+            <p>You are logged in, @context.User.Identity.Name!</p>
+            <a href="/fetchdata" class="btn btn-primary">View Your Profile</a>
+        </Authorized>
+        <NotAuthorized>
+            <p>Get started by creating an account or logging in.</p>
+            <a href="/login" class="btn btn-primary">Login</a>
+            <a href="/register" class="btn btn-secondary">Register</a>
+        </NotAuthorized>
+    </AuthorizeView>
+
+</div>

@@ -36,7 +36,7 @@ For example, if your server name is `(localdb)\mssqllocaldb`, the string would l
 
 ```json
 "ConnectionStrings": {
-  "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=BlazorApp1Db;Trusted_Connection=True;MultipleActiveResultSets=true"
+  "DefaultConnection": "Server=localhost;Database=BlazorApp1Db;Trusted_Connection=True;MultipleActiveResultSets=true"
 },
 ```
 

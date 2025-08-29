@@ -1,5 +1,6 @@
 using BlazorApp1.Auth;
 using BlazorApp1.Data;
+using BlazorApp1.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -38,9 +39,14 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+
+builder.Services.AddAutoMapper(typeof(Program).Assembly);
+
+builder.Services.AddScoped(typeof(IReadRepository<>), typeof(ReadRepository<>));
+builder.Services.AddScoped(typeof(IWriteRepository<>), typeof(WriteRepository<>));
+
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
-// This correctly configures HttpClient with the app's base address
 builder.Services.AddScoped(sp => {
     var navigationManager = sp.GetRequiredService<NavigationManager>();
     return new HttpClient { BaseAddress = new Uri(navigationManager.BaseUri) };
@@ -64,7 +70,7 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers(); // Map API controllers
+app.MapControllers();
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
 

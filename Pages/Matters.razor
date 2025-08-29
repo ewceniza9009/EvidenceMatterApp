@@ -1,0 +1,187 @@
+﻿@page "/matters"
+@attribute [Authorize]
+
+@using BlazorApp1.Dtos
+@using BlazorApp1.Models
+@using BlazorApp1.Repositories
+@using AutoMapper
+
+@inject IReadRepository<MattersModel> MatterReadRepo
+@inject IWriteRepository<MattersModel> MatterWriteRepo
+@inject IMapper Mapper
+
+<PageTitle>Matters</PageTitle>
+
+<h1>Matters Management</h1>
+
+<button class="btn btn-success mb-3" @onclick="ShowAddModal">
+    <span class="oi oi-plus" aria-hidden="true"></span> Add New Matter
+</button>
+
+@if (matters == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Matter Name</th>
+                <th>Client Name</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var matter in matters)
+            {
+                <tr>
+                    <td>@matter.MatterId</td>
+                    <td>@matter.MatterName</td>
+                    <td>@matter.ClientName</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" @onclick="() => ShowEditModal(matter)">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => ShowDeleteModal(matter)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showModal)
+{
+    <div class="modal fade show" tabindex="-1" style="display: block;" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(isEditing ? "Edit Matter" : "Add Matter")</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="@currentMatter" OnValidSubmit="HandleValidSubmit">
+                        <DataAnnotationsValidator />
+                        <div class="mb-3">
+                            <label for="matterName" class="form-label">Matter Name</label>
+                            <InputText id="matterName" class="form-control" @bind-Value="currentMatter.MatterName" />
+                            <ValidationMessage For="@(() => currentMatter.MatterName)" />
+                        </div>
+                        <div class="mb-3">
+                            <label for="clientName" class="form-label">Client Name</label>
+                            <InputText id="clientName" class="form-control" @bind-Value="currentMatter.ClientName" />
+                            <ValidationMessage For="@(() => currentMatter.ClientName)" />
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@if (showDeleteConfirmation)
+{
+    <div class="modal fade show" tabindex="-1" style="display: block;" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Deletion</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete the matter: <strong>@currentMatter.MatterName</strong>?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeleteMatter">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+
+@code {
+    private List<MatterDto> matters;
+    private MatterDto currentMatter;
+    private bool showModal = false;
+    private bool showDeleteConfirmation = false;
+    private bool isEditing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMatters();
+    }
+
+    private async Task LoadMatters()
+    {
+        var matterModels = await MatterReadRepo.GetAllAsync();
+        matters = Mapper.Map<List<MatterDto>>(matterModels);
+    }
+
+    private void ShowAddModal()
+    {
+        currentMatter = new MatterDto();
+        isEditing = false;
+        showModal = true;
+    }
+
+    private void ShowEditModal(MatterDto matterToEdit)
+    {
+        currentMatter = new MatterDto
+        {
+            MatterId = matterToEdit.MatterId,
+            MatterName = matterToEdit.MatterName,
+            ClientName = matterToEdit.ClientName
+        };
+        isEditing = true;
+        showModal = true;
+    }
+
+    private void ShowDeleteModal(MatterDto matterToDelete)
+    {
+        currentMatter = matterToDelete;
+        showDeleteConfirmation = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        showDeleteConfirmation = false;
+        currentMatter = null;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        var matterModel = Mapper.Map<MattersModel>(currentMatter);
+
+        if (isEditing)
+        {
+            MatterWriteRepo.Update(matterModel);
+        }
+        else
+        {
+            await MatterWriteRepo.AddAsync(matterModel);
+        }
+
+        await MatterWriteRepo.SaveChangesAsync();
+        await LoadMatters();
+        CloseModal();
+    }
+
+    private async Task DeleteMatter()
+    {
+        var matterToDelete = await MatterReadRepo.GetByIdAsync(currentMatter.MatterId);
+        if (matterToDelete != null)
+        {
+            MatterWriteRepo.Delete(matterToDelete);
+            await MatterWriteRepo.SaveChangesAsync();
+        }
+        await LoadMatters();
+        CloseModal();
+    }
+}

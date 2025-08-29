@@ -1,21 +1,99 @@
 ﻿@page "/"
 
+@using AutoMapper
+@using BlazorApp1.Dtos
+@using BlazorApp1.Models
+@using BlazorApp1.Repositories
+
+@inject IReadRepository<MattersModel> MatterReadRepo
+@inject IReadRepository<EvidenceModel> EvidenceReadRepo
+@inject IMapper Mapper
+
 <PageTitle>Home</PageTitle>
 
-<div class="text-center">
-    <h1 class="display-4">Welcome to Your App</h1>
-    <p class="lead">A beautifully styled Blazor application with JWT authentication.</p>
+<div class="text-center mb-5">
+    <h1 class="display-4">Welcome to the App</h1>
+</div>
 
-    <AuthorizeView>
-        <Authorized>
-            <p>You are logged in, @context.User.Identity.Name!</p>
-            <a href="/fetchdata" class="btn btn-primary">View Your Profile</a>
-        </Authorized>
-        <NotAuthorized>
+<AuthorizeView>
+    <Authorized>
+        <h2>Recent Activity</h2>
+        <hr />
+        <div class="row">
+            <div class="col-md-6">
+                <h4>Latest Matters</h4>
+                @if (latestMatters == null || !latestMatters.Any())
+                {
+                    <p><em>No matters found.</em></p>
+                }
+                else
+                {
+                    @foreach (var matter in latestMatters)
+                    {
+                        <div class="card mb-3 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title">@matter.MatterName</h5>
+                                <h6 class="card-subtitle mb-2 text-muted">Client: @matter.ClientName</h6>
+                                <a href="/matters" class="card-link">View All Matters</a>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+
+            <div class="col-md-6">
+                <h4>Latest Evidence</h4>
+                @if (latestEvidence == null || !latestEvidence.Any())
+                {
+                    <p><em>No evidence found.</em></p>
+                }
+                else
+                {
+                    @foreach (var evidence in latestEvidence)
+                    {
+                        <div class="card mb-3 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title">@evidence.Description</h5>
+                                <h6 class="card-subtitle mb-2 text-muted">S/N: @evidence.SerialNumber</h6>
+                                <p class="card-text">
+                                    <small>Part of Matter: <strong>@evidence.MatterName</strong></small>
+                                </p>
+                                <a href="/evidence" class="card-link">View All Evidence</a>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="text-center">
             <p>Get started by creating an account or logging in.</p>
             <a href="/login" class="btn btn-primary">Login</a>
             <a href="/register" class="btn btn-secondary">Register</a>
-        </NotAuthorized>
-    </AuthorizeView>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
 
-</div>
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; }
+
+    private List<MatterDto> latestMatters;
+    private List<EvidenceDto> latestEvidence;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState;
+        var user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            var allMatters = await MatterReadRepo.GetAllAsync();
+            latestMatters = Mapper.Map<List<MatterDto>>(allMatters.OrderByDescending(m => m.MatterId).Take(3));
+
+            var allEvidence = await EvidenceReadRepo.GetAllAsync(e => e.Matter);
+            latestEvidence = Mapper.Map<List<EvidenceDto>>(allEvidence.OrderByDescending(e => e.EvidenceId).Take(3));
+        }
+    }
+}

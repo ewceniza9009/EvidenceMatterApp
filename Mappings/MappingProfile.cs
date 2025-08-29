@@ -11,7 +11,8 @@ namespace BlazorApp1.Mappings
             CreateMap<MattersModel, MatterDto>().ReverseMap();
 
             CreateMap<EvidenceModel, EvidenceDto>()
-                .ForMember(dest => dest.MatterName, opt => opt.MapFrom(src => src.Matter.MatterName));
+                .ForMember(dest => dest.MatterName, opt => opt.MapFrom(src => src.Matter.MatterName))
+                .ReverseMap();
         }
     }
 }

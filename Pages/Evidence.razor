@@ -1,0 +1,242 @@
+﻿@page "/evidence"
+@attribute [Authorize]
+
+@using AutoMapper
+@using BlazorApp1.Dtos
+@using BlazorApp1.Models
+@using BlazorApp1.Repositories
+
+@inject IReadRepository<EvidenceModel> EvidenceReadRepo
+@inject IWriteRepository<EvidenceModel> EvidenceWriteRepo
+@inject IReadRepository<MattersModel> MatterReadRepo
+@inject IMapper Mapper
+@inject IWriteRepository<MattersModel> MatterWriteRepo
+
+<PageTitle>Evidence Management</PageTitle>
+
+<h1>Evidence Management</h1>
+
+<button class="btn btn-success mb-3" @onclick="ShowAddModal">
+    <span class="oi oi-plus" aria-hidden="true"></span> Add New Evidence
+</button>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label for="matterFilter" class="form-label"><strong>Filter by Matter:</strong></label>
+        <select id="matterFilter" class="form-select" @bind="selectedMatterId">
+            <option value="0">-- All Matters --</option>
+            @if (mattersForDropdown != null)
+            {
+                @foreach (var matter in mattersForDropdown)
+                {
+                    <option value="@matter.MatterId">@matter.MatterName</option>
+                }
+            }
+        </select>
+    </div>
+</div>
+
+@if (FilteredEvidenceList == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Description</th>
+                <th>Serial Number</th>
+                <th>Matter Name</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var evidence in FilteredEvidenceList)
+            {
+                <tr>
+                    <td>@evidence.EvidenceId</td>
+                    <td>@evidence.Description</td>
+                    <td>@evidence.SerialNumber</td>
+                    <td>@evidence.MatterName</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" @onclick="() => ShowEditModal(evidence)">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => ShowDeleteModal(evidence)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (showModal)
+{
+    <div class="modal fade show" tabindex="-1" style="display: block;" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(isEditing ? "Edit Evidence" : "Add Evidence")</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="@currentEvidence" OnValidSubmit="HandleValidSubmit">
+                        <DataAnnotationsValidator />
+                        <div class="mb-3">
+                            <label class="form-label">Matter</label>
+                            <InputSelect class="form-control" @bind-Value="currentEvidence.MatterId">
+                                <option value="0">-- Select a Matter --</option>
+                                @if (mattersForDropdown != null)
+                                {
+                                    @foreach (var matter in mattersForDropdown)
+                                    {
+                                        <option value="@matter.MatterId">@matter.MatterName</option>
+                                    }
+                                }
+                            </InputSelect>
+                            <ValidationMessage For="@(() => currentEvidence.MatterId)" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <InputText class="form-control" @bind-Value="currentEvidence.Description" />
+                            <ValidationMessage For="@(() => currentEvidence.Description)" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Serial Number</label>
+                            <InputText class="form-control" @bind-Value="currentEvidence.SerialNumber" />
+                            <ValidationMessage For="@(() => currentEvidence.SerialNumber)" />
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@if (showDeleteConfirmation)
+{
+    <div class="modal fade show" tabindex="-1" style="display: block;" role="dialog">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Deletion</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this evidence: <strong>@currentEvidence.Description</strong>?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeleteEvidence">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+
+@code {
+    private List<EvidenceDto> evidenceList;
+    private List<MattersModel> mattersForDropdown;
+    private EvidenceDto currentEvidence;
+
+    private bool showModal = false;
+    private bool showDeleteConfirmation = false;
+    private bool isEditing = false;
+
+    private int selectedMatterId = 0;         
+    private List<EvidenceDto> FilteredEvidenceList =>
+        evidenceList?.Where(e => selectedMatterId == 0 || e.MatterId == selectedMatterId).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEvidence();
+        mattersForDropdown = (await MatterReadRepo.GetAllAsync()).ToList();
+    }
+
+    private async Task LoadEvidence()
+    {
+        var evidenceModels = await EvidenceReadRepo.GetAllAsync(e => e.Matter);
+        evidenceList = Mapper.Map<List<EvidenceDto>>(evidenceModels);
+    }
+
+    private void ShowAddModal()
+    {
+        currentEvidence = new EvidenceDto();
+        isEditing = false;
+        showModal = true;
+    }
+
+    private void ShowEditModal(EvidenceDto evidenceToEdit)
+    {
+        currentEvidence = new EvidenceDto
+        {
+            EvidenceId = evidenceToEdit.EvidenceId,
+            Description = evidenceToEdit.Description,
+            SerialNumber = evidenceToEdit.SerialNumber,
+            MatterId = evidenceToEdit.MatterId
+        };
+        isEditing = true;
+        showModal = true;
+    }
+
+    private void ShowDeleteModal(EvidenceDto evidenceToDelete)
+    {
+        currentEvidence = evidenceToDelete;
+        showDeleteConfirmation = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+        showDeleteConfirmation = false;
+        currentEvidence = null;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        var matter = await MatterReadRepo.GetByIdAsync(currentEvidence.MatterId);
+        if (matter == null)
+        {
+            return;
+        }
+
+        if (isEditing)
+        {
+            var evidenceModel = await EvidenceReadRepo.GetByIdAsync(currentEvidence.EvidenceId);
+            if (evidenceModel != null)
+            {
+                Mapper.Map(currentEvidence, evidenceModel);
+                evidenceModel.Matter = matter;             
+                EvidenceWriteRepo.Update(evidenceModel);
+            }
+        }
+        else
+        {
+            var evidenceModel = Mapper.Map<EvidenceModel>(currentEvidence);
+            evidenceModel.Matter = matter;             
+            await EvidenceWriteRepo.AddAsync(evidenceModel);
+        }
+
+        await EvidenceWriteRepo.SaveChangesAsync();
+        await LoadEvidence();
+        CloseModal();
+    }
+
+
+    private async Task DeleteEvidence()
+    {
+        var evidenceModelToDelete = await EvidenceReadRepo.GetByIdAsync(currentEvidence.EvidenceId);
+        if (evidenceModelToDelete != null)
+        {
+            EvidenceWriteRepo.Delete(evidenceModelToDelete);
+            await EvidenceWriteRepo.SaveChangesAsync();
+        }
+        await LoadEvidence();
+        CloseModal();
+    }
+}
